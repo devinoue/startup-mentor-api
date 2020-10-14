@@ -1,0 +1,80 @@
+name: taskboard_backend
+authenticationType: AMAZON_COGNITO_USER_POOLS #API_KEYにする必要あり
+userPoolConfig:
+  awsRegion: ap-northeast-1
+  userPoolId: ap-northeast-1_dG7IV7jf3
+  defaultAction: ALLOW
+schema: schema.graphql
+dataSources:
+  - type: AMAZON_DYNAMODB
+    name: ddbTable
+    description: DynamoDB table
+    config:
+      tableName: ${self:custom.table_name}
+      serviceRoleArn: { Fn::GetAtt: [AppSyncDynamoDBServiceRole, Arn] }
+      region: ap-northeast-1
+  - type: AWS_LAMBDA
+    name: dsLambda
+    description: Lambda DataSource for application infomation
+    config:
+      functionName: dsLambda
+      iamRoleStatements:
+        - Effect: "Allow"
+          Action:
+            - "lambda:invokeFunction"
+          Resource:
+            - "*"
+mappingTemplatesLocation: mapping-templates
+mappingTemplates:
+  - dataSource: dsLambda
+    type: Query
+    field: info
+    request: default.request.vtl
+    response: default.response.vtl
+  - dataSource: dsLambda
+    type: Query
+    field: getGptData
+    request: default.request.vtl
+    response: default.response.vtl
+    
+  - dataSource: dsLambda
+    type: Query
+    field: getItemById
+    request: default.request.vtl
+    response: default.response.vtl
+
+  - dataSource: dsLambda
+    type: Mutation
+    field: createItemByLambda
+    request: default.request.vtl
+    response: default.response.vtl
+
+  - dataSource: ddbTable
+    type: Mutation
+    field: createItem
+    request: "Mutation.createItem.request.vtl"
+    response: default.response.vtl
+
+  - dataSource: ddbTable
+    type: Query
+    field: getItem
+    request: Query.getItem.request.vtl
+    response: Query.getItem.response.vtl
+
+  - dataSource: ddbTable
+    type: Query
+    field: listItems
+    request: Query.listItems.request.vtl
+    response: Query.listItems.response.vtl
+
+  - dataSource: ddbTable
+    type: Mutation
+    field: updateItem
+    request: Mutation.updateItem.request.vtl
+    response: default.response.vtl
+  
+  - dataSource: ddbTable
+    type: Mutation
+    field: deleteItem
+    request: Mutation.deleteItem.request.vtl
+    response: default.response.vtl

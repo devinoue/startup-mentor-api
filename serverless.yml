@@ -1,0 +1,104 @@
+service:
+  name: serverless-appsync-app
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+
+plugins:
+  - serverless-webpack
+  - serverless-appsync-plugin
+  - serverless-dynamodb-local
+  - serverless-appsync-simulator
+  - serverless-offline
+
+custom:
+  appsync-simulator:
+    location: ".webpack/service"
+  # settings: ${file(./config/${self:provider.stage}/settings.yml)}
+  table_name: appsync-table
+
+  dynamodb:
+    stages:
+      - ${self:provider.stage}
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+      seed: true
+    seed:
+      dev:
+        sources:
+          - table: ${self:custom.table_name}
+            sources: [./migrations/tasks.json]
+  appSync: ${file(./config/appsync.yml)}
+
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, "dev"}
+  apiGateway:
+    minimumCompressionSize: 1024 # Enable gzip compression for responses > 1 KB
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+  region: ap-northeast-1
+  iamRoleStatements: ${file(./config/dynamo-iam.yml)}
+
+
+
+functions:
+  dsLambda:
+    handler: src/handler.handler
+    environment:
+      TABLE_NAME: ${self:custom.table_name}
+      API_KEY: ${file(./config/secret.yml):api_key}
+
+resources:
+  Resources:
+    Table:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.table_name}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: status
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: status
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+    AppSyncDynamoDBServiceRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+        RoleName: appsync-dynamodb-role
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service:
+                  - "appsync.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+        Policies:
+          - PolicyName: "dynamo-policy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "dynamodb:Query"
+                    - "dynamodb:BatchWriteItem"
+                    - "dynamodb:GetItem"
+                    - "dynamodb:DeleteItem"
+                    - "dynamodb:PutItem"
+                    - "dynamodb:Scan"
+                    - "dynamodb:UpdateItem"
+                  Resource:
+                    - "*"
