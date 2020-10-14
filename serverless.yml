@@ -1,5 +1,5 @@
 service:
-  name: serverless-appsync-app
+  name: startup-mentor-api
 # app and org for use with dashboard.serverless.com
 #app: your-app-name
 #org: your-org-name
@@ -12,10 +12,12 @@ plugins:
   - serverless-offline
 
 custom:
+  webpack:
+    includeModules: true
   appsync-simulator:
     location: ".webpack/service"
   # settings: ${file(./config/${self:provider.stage}/settings.yml)}
-  table_name: appsync-table
+  table_name: startup-mentor-api-table
 
   dynamodb:
     stages:
